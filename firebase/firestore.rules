@@ -1,0 +1,47 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow create: if request.auth != null
+          && request.auth.uid == request.resource.data.userId;
+      allow read, update, delete: if isAdmin() || (request.auth != null
+          && request.auth.uid == resource.data.userId);
+    }
+
+    match /users/{userId} {
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.uid;
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow update: if isAdmin() || (request.auth != null && request.auth.uid == userId
+          && request.resource.data.role == resource.data.role);
+      allow delete: if isAdmin();
+    }
+
+    match /reviews/{reviewId} {
+      allow create: if request.auth != null
+          && request.auth.uid == request.resource.data.userId
+          && request.resource.data.productId is string
+          && request.resource.data.rating >= 1
+          && request.resource.data.rating <= 5
+          && request.resource.data.title is string
+          && request.resource.data.comment is string;
+      allow read: if true;
+      allow update: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow delete: if isAdmin() || (request.auth != null && request.auth.uid == resource.data.userId);
+    }
+
+    match /{document=**} {
+      allow read: if false;
+      allow write: if false;
+    }
+  }
+}
+
+function isAdmin() {
+  return request.auth != null
+      && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+}

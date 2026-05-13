@@ -142,14 +142,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       role: data.user.role,
     }));
 
-    // Set user profile
+    // Set user (userProfile will be set by onSnapshot)
     setUser(firebaseUser);
-    setUserProfile({
-      uid: data.userId,
-      phone: data.user.phone,
-      fullName: data.user.fullName,
-      role: data.user.role,
-    });
   };
 
   // Verify OTP and login
@@ -188,14 +182,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       role: data.user.role,
     }));
 
-    // Set user profile
+    // Set user (userProfile will be set by onSnapshot)
     setUser(firebaseUser);
-    setUserProfile({
-      uid: data.userId,
-      phone: data.user.phone,
-      fullName: data.user.fullName,
-      role: data.user.role,
-    });
   };
 
   // Logout
@@ -240,11 +228,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const unsubscribeProfile = onSnapshot(userRef, (snapshot) => {
             if (snapshot.exists()) {
               const data = snapshot.data();
+              let address;
+              if (data.address && typeof data.address === 'object' && data.address.street) {
+                address = data.address;
+              } else if (data.address || data.city || data.state || data.zip) {
+                address = {
+                  street: data.address || '',
+                  city: data.city || '',
+                  state: data.state || '',
+                  zip: data.zip || '',
+                };
+              } else {
+                address = undefined;
+              }
               setUserProfile({
                 uid: firebaseUser.uid,
                 phone: data.phone ?? "",
                 fullName: data.fullName ?? "",
-                address: data.address,
+                address,
                 role: data.role === "admin" ? "admin" : "user",
               });
             } else {

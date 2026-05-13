@@ -180,59 +180,73 @@ export default function Header() {
       </div>
 
       {/* 📱 MOBILE DRAWER */}
-      {isOpen && (
-  <div className="fixed inset-0 z-50">
-    
-    {/* 🔲 OVERLAY */}
-    <div
-      className="absolute inset-0 bg-black/50"
-      onClick={() => setIsOpen(false)}
-    />
+        {isOpen && (
+          <div className="fixed inset-0 z-[9999]">
 
-    {/* 📦 MENU PANEL */}
-    <div className="absolute right-0 top-0 h-full w-64 bg-white p-6 shadow-2xl z-50">
-      
-      {/* CLOSE */}
-      <div className="flex justify-end mb-6">
-        <button onClick={() => setIsOpen(false)}>
-          <X size={24} />
-        </button>
-      </div>
+            {/* 🔲 OVERLAY */}
+            <div
+              className="absolute inset-0 bg-black/50"
+              onClick={() => setIsOpen(false)}
+            />
 
-      {/* MENU ITEMS */}
-      <nav className="flex flex-col gap-6 text-sm uppercase tracking-wider">
-        <Link href="/shop" onClick={() => setIsOpen(false)}>
-          Shop
-        </Link>
+            {/* 📦 SIDEBAR */}
+            <div className="absolute right-0 top-0 h-screen w-64 bg-white p-6 shadow-2xl flex flex-col">
 
-        {user ? (
-          <>
-            <Link href="/profile" onClick={() => setIsOpen(false)}>
-              Account
-            </Link>
+              {/* TOP CONTENT */}
+              <div>
 
-            <Link href="/profile#orders" onClick={() => setIsOpen(false)}>
-              Order History
-            </Link>
+                {/* ❌ CLOSE BUTTON */}
+                <div className="flex justify-end mb-8">
+                  <button
+                    onClick={() => setIsOpen(false)}
+                    className="text-black"
+                  >
+                    <X size={24} />
+                  </button>
+                </div>
 
-            <button
-              onClick={() => {
-                logout();
-                setIsOpen(false);
-              }}
-            >
-              Sign Out
-            </button>
-          </>
-        ) : (
-          <Link href="/login" onClick={() => setIsOpen(false)}>
-            Login
-          </Link>
+                {/* 📑 MENU */}
+                <nav className="flex flex-col gap-6 text-sm uppercase tracking-wider">
+
+                  <Link href="/shop" onClick={() => setIsOpen(false)}>
+                    Shop
+                  </Link>
+
+                  {user ? (
+                    <>
+                      <Link href="/profile" onClick={() => setIsOpen(false)}>
+                        Account
+                      </Link>
+
+                      <Link href="/profile#orders" onClick={() => setIsOpen(false)}>
+                        Order History
+                      </Link>
+                    </>
+                  ) : (
+                    <Link href="/login" onClick={() => setIsOpen(false)}>
+                      Login
+                    </Link>
+                  )}
+
+                </nav>
+              </div>
+
+              {/* 🚪 SIGN OUT */}
+              {user && (
+                <button
+                  onClick={() => {
+                    logout();
+                    setIsOpen(false);
+                  }}
+                  className="mt-auto border-t pt-4 text-left text-sm uppercase tracking-wider text-red-500 hover:text-red-700"
+                >
+                  Sign Out
+                </button>
+              )}
+
+            </div>
+          </div>
         )}
-      </nav>
-    </div>
-  </div>
-)}
     </header>
 
     {/* 🔍 SEARCH BAR */}

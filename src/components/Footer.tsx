@@ -1,8 +1,6 @@
 // src/components/Footer.tsx
 import Link from "next/link";
-import { Star, Heart } from "lucide-react";
 import { FaInstagram, FaFacebook, FaYoutube, FaSnapchat } from "react-icons/fa";
-import { SiSnapchat } from "react-icons/si";
 
 export default function Footer() {
   return (
@@ -22,6 +20,9 @@ export default function Footer() {
             <Link href="/contact" className="hover:text-brand-900">
               Contact
             </Link>
+            <Link href="/terms" className="hover:text-brand-900">
+              Terms & Conditions
+            </Link>
           </div>
           <div className="flex gap-5 text-brand-500">
             <a href="https://www.instagram.com/fahan_wear?igsh=MWwwZjU5bG5haDAyOA==" target="_blank">
@@ -36,9 +37,9 @@ export default function Footer() {
               <FaSnapchat className="hover:text-brand-900 cursor-pointer" />
             </a>
 
-            <a href="https://youtube.com/@yourchannel" target="_blank">
+            {/* <a href="https://youtube.com/@yourchannel" target="_blank">
               <FaYoutube className="hover:text-brand-900 cursor-pointer" />
-            </a>
+            </a> */}
           </div>
         </div>
       </div>

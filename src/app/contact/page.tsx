@@ -119,7 +119,7 @@ Message: ${formData.message}`;
               <div className="flex items-start gap-4">
                 <MapPin size={18} className="mt-0.5 text-brand-500" />
                 <span className="text-base leading-relaxed">
-                  247 Mohalla Momin Ansar Lawar, Meerut, Uttar Pradesh 250222
+                  247 Netaji Subhash Marg, west of Red Fort, New Delhi, Delhi, 110006, India
                 </span>
               </div>
             </div>
@@ -141,9 +141,9 @@ Message: ${formData.message}`;
                 <FaSnapchat className="hover:text-brand-900 cursor-pointer" />
               </a>
 
-              <a href="https://youtube.com/@yourchannel" target="_blank">
+              {/* <a href="https://youtube.com/@yourchannel" target="_blank">
                 <FaYoutube className="hover:text-brand-900 cursor-pointer" />
-              </a>
+              </a> */}
             </div>
           </div>
         </AnimatedSection>

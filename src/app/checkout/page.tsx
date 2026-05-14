@@ -450,13 +450,13 @@ export default function CheckoutPage() {
           </div>
           {onlinePaymentDiscount > 0 && (
             <div className="flex justify-between text-sm text-green-600">
-              <span>MRP discount for online payment</span>
+              <span>Prepaid discount</span>
               <span>-₹{onlinePaymentDiscount}</span>
             </div>
           )}
           {firstOrderDiscount > 0 && (
             <div className="flex justify-between text-sm text-green-600">
-              <span>MRP discount for first purchase</span>
+              <span>First purchase discount</span>
               <span>-₹{firstOrderDiscount}</span>
             </div>
           )}

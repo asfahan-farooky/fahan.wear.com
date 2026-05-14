@@ -1,7 +1,7 @@
 // src/app/product/[id]/page.tsx
 "use client";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useProducts } from "@/context/ProductContext";
 import { useCart } from "@/context/CartContext";
@@ -31,18 +31,18 @@ export default function ProductPage() {
   const [quantity, setQuantity] = useState(1);
   const [expandedDescription, setExpandedDescription] = useState(false);
 
+  const touchStartX = useRef<number | null>(null);
+  const touchEndX = useRef<number | null>(null);
+
   // Reviews
-  const {
-    reviews,
-    loading: reviewsLoading,
-    submitReview,
-    canUserReview,
-  } = useReviews(product?.id || "");
+  const { reviews, submitReview, canUserReview } = useReviews(product?.id || "");
 
   useEffect(() => {
+    // Sync selected size/color when a new product loads.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedSize(product?.sizes[0] || "");
     setSelectedColor(product?.colors[0] || "");
-  }, [product?.id]);
+  }, [product?.colors, product?.sizes]);
 
   if (!product) {
     return (
@@ -70,30 +70,26 @@ export default function ProductPage() {
     // }, 4000);
   };
 
-  let touchStartX = 0;
-  let touchEndX = 0;
-
   const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX = e.changedTouches[0].screenX;
+    touchStartX.current = e.changedTouches[0].screenX;
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    touchEndX = e.changedTouches[0].screenX;
+    touchEndX.current = e.changedTouches[0].screenX;
     handleSwipe();
   };
 
   const handleSwipe = () => {
-    const diff = touchStartX - touchEndX;
+    if (touchStartX.current == null || touchEndX.current == null) return;
+    const diff = touchStartX.current - touchEndX.current;
 
     if (diff > 50) {
-      // swipe left → next image
       setActiveImage((prev) =>
         prev < availableImages.length - 1 ? prev + 1 : prev
       );
     }
 
     if (diff < -50) {
-      // swipe right → previous image
       setActiveImage((prev) =>
         prev > 0 ? prev - 1 : prev
       );
@@ -260,11 +256,61 @@ export default function ProductPage() {
             </div>
 
             <p className="text-[10px] md:text-xs uppercase tracking-widest text-brand-300">
-              Free shipping on orders over ₹2000
+              Free shipping on this order
             </p>
           </div>
         </AnimatedSection>
       </div>
+
+      <div className="mt-6 grid gap-4 rounded-3xl border border-brand-200 bg-white/90 p-4 shadow-sm sm:grid-cols-3 sm:p-6">
+  {/* Lowest Price */}
+  <div className="group flex items-start gap-4 rounded-2xl border border-brand-100 bg-brand-grey-50 p-4 transition hover:shadow-md sm:p-5">
+    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-green-100 text-green-700 shadow-sm">
+      {/* Tag icon – best price */}
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" />
+        <line x1="7" y1="7" x2="7.01" y2="7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+      </svg>
+    </div>
+    <div>
+      <p className="text-sm font-bold uppercase tracking-[0.15em] text-brand-700">Lowest Price</p>
+      <p className="mt-1 text-xs leading-relaxed text-brand-500">We match fair prices so you get the best deal.</p>
+    </div>
+  </div>
+
+  {/* Cash on Delivery */}
+  <div className="group flex items-start gap-4 rounded-2xl border border-brand-100 bg-brand-grey-50 p-4 transition hover:shadow-md sm:p-5">
+    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 shadow-sm">
+      {/* Banknote icon – cash */}
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <rect x="2" y="6" width="20" height="12" rx="2" stroke="currentColor" />
+        <path d="M6 6v12M18 6v12" stroke="currentColor" />
+        <circle cx="12" cy="12" r="3" fill="currentColor" stroke="none" />
+      </svg>
+    </div>
+    <div>
+      <p className="text-sm font-bold uppercase tracking-[0.15em] text-brand-700">Cash on Delivery Avelable</p>
+      <p className="mt-1 text-xs leading-relaxed text-brand-500">Pay when your order arrives at your doorstep.</p>
+    </div>
+  </div>
+
+  {/* 7-day Returns */}
+  <div className="group flex items-start gap-4 rounded-2xl border border-brand-100 bg-brand-grey-50 p-4 transition hover:shadow-md sm:p-5">
+    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-700 shadow-sm">
+      {/* Circular arrows – easy returns */}
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M1 4v6h6" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M23 20v-6h-6" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M20.49 9A9 9 0 005.64 5.64L1 10" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3.51 15A9 9 0 0018.36 18.36L23 14" />
+      </svg>
+    </div>
+    <div>
+      <p className="text-sm font-bold uppercase tracking-[0.15em] text-brand-700">7-day Returns</p>
+      <p className="mt-1 text-xs leading-relaxed text-brand-500">Not satisfied? Return your order within 7 days.</p>
+    </div>
+  </div>
+</div>
 
       {/* REVIEWS SECTION */}
       {product && (

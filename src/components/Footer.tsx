@@ -21,7 +21,7 @@ export default function Footer() {
               Contact
             </Link>
             <Link href="/terms" className="hover:text-brand-900">
-              Terms & Conditions
+              T&C
             </Link>
           </div>
           <div className="flex gap-5 text-brand-500">

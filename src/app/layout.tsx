@@ -15,7 +15,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Fahan Wear — Premium Men’s Essentials",
+  title: "Fahan Wear — Premium Wearing Essentials",
   description: "Refined basics for the modern man.",
 };
 

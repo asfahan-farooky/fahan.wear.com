@@ -18,7 +18,7 @@ export default function Home() {
 
   {/* Fallback image (ALWAYS visible first) */}
   <Image
-    src="/hero1.jpg"
+    src="/hero2.png"
     alt="Hero"
     fill
     priority

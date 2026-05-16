@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect, type FormEvent, type ChangeEvent, } from "react";
+import { useMemo, useState, useEffect, type FormEvent, type ChangeEvent } from "react";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, deleteDoc, writeBatch, getDocs, serverTimestamp } from "firebase/firestore";
 import { useProducts } from "@/context/ProductContext";
@@ -39,7 +39,13 @@ function generateProductId(name: string) {
 export default function AdminPage() {
   const { user, userProfile, loading } = useAuth();
   const { products, categories, addProduct, updateProduct, removeProduct, loading: productsLoading } = useProducts();
-  // const [formState, setFormState] = useState<Product>(blankForm);
+
+  // Pagination states for each list
+  const [productPage, setProductPage] = useState(1);
+  const [recentOrderPage, setRecentOrderPage] = useState(1);
+  const [allOrderPage, setAllOrderPage] = useState(1);
+  const [currentUserPage, setCurrentUserPage] = useState(1);
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [message, setMessage] = useState<string>("");
   const [orders, setOrders] = useState<Order[]>([]);
@@ -49,7 +55,6 @@ export default function AdminPage() {
   const [adminMessage, setAdminMessage] = useState<string>("");
   const [userSearchTerm, setUserSearchTerm] = useState<string>("");
   const [productSearchTerm, setProductSearchTerm] = useState<string>("");
-  const [currentUserPage, setCurrentUserPage] = useState<number>(1);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [userDetailsOpen, setUserDetailsOpen] = useState<boolean>(false);
 
@@ -106,7 +111,7 @@ export default function AdminPage() {
     [orders]
   );
 
-  // Filter and paginate users
+  // Filter users by search
   const filteredUsers = useMemo(() => {
     return users.filter(user =>
       user.fullName?.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
@@ -115,14 +120,7 @@ export default function AdminPage() {
     );
   }, [users, userSearchTerm]);
 
-  const paginatedUsers = useMemo(() => {
-    const startIndex = (currentUserPage - 1) * 10;
-    return filteredUsers.slice(startIndex, startIndex + 10);
-  }, [filteredUsers, currentUserPage]);
-
-  const totalUserPages = Math.ceil(filteredUsers.length / 10);
-
-  // Filter products
+  // Filter products by search
   const filteredProducts = useMemo(() => {
     return products.filter(product =>
       product.name.toLowerCase().includes(productSearchTerm.toLowerCase()) ||
@@ -131,7 +129,7 @@ export default function AdminPage() {
     );
   }, [products, productSearchTerm]);
 
-  // Get orders from last 24 hours
+  // Recent orders (last 24 hours)
   const recentOrders = useMemo(() => {
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     return orders.filter(order => {
@@ -140,19 +138,39 @@ export default function AdminPage() {
     });
   }, [orders]);
 
-  const handleImagesChange = (color: string, value: string) => {
-  setFormState((prev) => ({
-    ...prev,
-    imagesByColorInput: {
-      ...prev.imagesByColorInput,
-      [color]: value,
-    },
-    imagesByColor: {
-      ...prev.imagesByColor,
-      [color]: normalizeList(value),
-    },
-  }));
-};
+  // ---------------- PAGINATION COMPUTATIONS (5 items per page) ----------------
+
+  const ITEMS_PER_PAGE = 5;
+
+  // Products
+  const totalProductPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
+  const paginatedProducts = useMemo(() => {
+    const start = (productPage - 1) * ITEMS_PER_PAGE;
+    return filteredProducts.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredProducts, productPage]);
+
+  // Recent orders
+  const totalRecentOrderPages = Math.ceil(recentOrders.length / ITEMS_PER_PAGE);
+  const paginatedRecentOrders = useMemo(() => {
+    const start = (recentOrderPage - 1) * ITEMS_PER_PAGE;
+    return recentOrders.slice(start, start + ITEMS_PER_PAGE);
+  }, [recentOrders, recentOrderPage]);
+
+  // All orders
+  const totalAllOrderPages = Math.ceil(orders.length / ITEMS_PER_PAGE);
+  const paginatedAllOrders = useMemo(() => {
+    const start = (allOrderPage - 1) * ITEMS_PER_PAGE;
+    return orders.slice(start, start + ITEMS_PER_PAGE);
+  }, [orders, allOrderPage]);
+
+  // Users (change from 10 to 5 per page)
+  const totalUserPages = Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
+  const paginatedUsers = useMemo(() => {
+    const start = (currentUserPage - 1) * ITEMS_PER_PAGE;
+    return filteredUsers.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredUsers, currentUserPage]);
+
+  // ---------------------------------------------------------------------------
 
   type AdminFormState = Product & {
     colorsInput: string;
@@ -362,6 +380,20 @@ export default function AdminPage() {
     }
   };
 
+  const handleImagesChange = (color: string, value: string) => {
+    setFormState((prev) => ({
+      ...prev,
+      imagesByColorInput: {
+        ...prev.imagesByColorInput,
+        [color]: value,
+      },
+      imagesByColor: {
+        ...prev.imagesByColor,
+        [color]: normalizeList(value),
+      },
+    }));
+  };
+
   const handleColorInputChange = (value: string) => {
     const colors = normalizeList(value);
     setFormState((prev) => {
@@ -486,6 +518,32 @@ export default function AdminPage() {
     resetForm();
   };
 
+  // --- Reusable Pagination Controls Component ---
+  function PaginationControls({ currentPage, totalPages, onPageChange, label }: { currentPage: number; totalPages: number; onPageChange: (page: number) => void; label: string }) {
+    if (totalPages <= 1) return null;
+    return (
+      <div className="mt-6 flex items-center justify-between">
+        <button
+          onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+          disabled={currentPage === 1}
+          className="rounded-2xl border border-brand-grey-200 bg-white px-4 py-2 text-sm text-brand-700 hover:bg-brand-grey-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Previous
+        </button>
+        <span className="text-sm text-brand-500">
+          {label} Page {currentPage} of {totalPages}
+        </span>
+        <button
+          onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+          disabled={currentPage === totalPages}
+          className="rounded-2xl border border-brand-grey-200 bg-white px-4 py-2 text-sm text-brand-700 hover:bg-brand-grey-50 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Next
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-7xl px-6 py-16">
       <AnimatedSection>
@@ -521,7 +579,7 @@ export default function AdminPage() {
             </div>
 
             <div className="space-y-4">
-              {filteredProducts.map((product) => (
+              {paginatedProducts.map((product) => (
                 <div key={product.id} className="grid gap-3 rounded-3xl border border-brand-grey-100 bg-brand-grey-50 p-4 md:grid-cols-[1fr_auto] md:items-center">
                   <div>
                     <p className="font-semibold uppercase tracking-widest text-brand-700">{product.name}</p>
@@ -539,6 +597,7 @@ export default function AdminPage() {
                 </div>
               ))}
             </div>
+            <PaginationControls currentPage={productPage} totalPages={totalProductPages} onPageChange={setProductPage} label="Products" />
           </div>
 
           <div className="rounded-3xl border border-brand-grey-100 bg-white p-6 shadow-sm">
@@ -552,6 +611,7 @@ export default function AdminPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* ... all existing form fields unchanged ... */}
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block text-sm text-brand-700">
                   Product ID
@@ -572,7 +632,6 @@ export default function AdminPage() {
                   />
                 </label>
               </div>
-
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block text-sm text-brand-700">
                   Price
@@ -608,7 +667,6 @@ export default function AdminPage() {
                   </select>
                 </label>
               </div>
-
               <label className="block text-sm text-brand-700">
                 Colors (comma separated)
                 <input
@@ -630,7 +688,6 @@ export default function AdminPage() {
                   }
                 />
               </label>
-
               <label className="block text-sm text-brand-700">
                 Sizes (comma separated)
                 <input
@@ -651,7 +708,6 @@ export default function AdminPage() {
                   placeholder={formState.category === "accessories" || formState.category === "others" ? "Free Size" : "S, M, L, XL"}
                 />
               </label>
-
               <fieldset className="rounded-3xl border border-brand-grey-200 bg-brand-grey-50 p-4">
                 <legend className="text-sm font-semibold uppercase tracking-widest text-brand-700">
                   Global images
@@ -684,32 +740,24 @@ export default function AdminPage() {
                   </label>
                 </div>
               </fieldset>
-
               {formState.colors.length > 0 && (
                 <div className="rounded-3xl border border-brand-grey-200 bg-brand-grey-50 p-4">
-                  
                   <h3 className="mb-4 text-sm font-semibold uppercase tracking-widest text-brand-700">
                     Color variant image URLs
                   </h3>
-
                   <p className="mb-4 text-sm text-brand-500">
                     Upload or paste URLs for each color variant. Each variant can have multiple images.
                   </p>
-
                   <div className="space-y-4">
                     {formState.colors.map((color) => (
-                      
                       <div
                         key={color}
                         className="space-y-3 rounded-2xl border border-brand-grey-100 bg-white p-4"
                       >
-                        
-                        {/* Top row */}
                         <div className="flex items-center justify-between">
                           <p className="text-sm font-medium uppercase tracking-widest text-brand-700">
                             {color}
                           </p>
-
                           <label className="cursor-pointer rounded-xl border border-brand-grey-200 px-3 py-1 text-sm hover:bg-brand-grey-100">
                             Upload
                             <input
@@ -721,13 +769,10 @@ export default function AdminPage() {
                             />
                           </label>
                         </div>
-
-                        {/* Textarea */}
                         <div>
                           <label className="block text-xs text-brand-600 mb-1">
                             Paste image URLs
                           </label>
-
                           <textarea
                             className="w-full min-h-[90px] rounded-lg border border-gray-300 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                             placeholder="Enter image URLs (comma or new line separated)"
@@ -737,13 +782,11 @@ export default function AdminPage() {
                             }
                           />
                         </div>
-
                       </div>
                     ))}
                   </div>
                 </div>
               )}
-
               <label className="block text-sm text-brand-700">
                 Description
                 <textarea
@@ -753,7 +796,6 @@ export default function AdminPage() {
                   placeholder="A short description of the product."
                 />
               </label>
-
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <Button type="submit" className="w-full sm:w-auto">
                   {isEditing ? "Save changes" : "Add product"}
@@ -796,7 +838,6 @@ export default function AdminPage() {
               <p className="text-sm text-brand-500">Select a product to preview it here.</p>
             )}
           </div>
-
           <div className="rounded-3xl border border-brand-grey-100 bg-white p-6 shadow-sm">
             <h2 className="mb-4 text-xl font-semibold">How it works</h2>
             <ul className="space-y-3 text-sm text-brand-500">
@@ -824,6 +865,7 @@ export default function AdminPage() {
         </AnimatedSection>
 
         <div className="grid gap-8 lg:grid-cols-[1.4fr_0.8fr]">
+          {/* Recent Orders */}
           <div className="rounded-3xl border border-brand-grey-100 bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-xl font-semibold">Recent Orders (Last 24 Hours)</h3>
@@ -833,71 +875,73 @@ export default function AdminPage() {
             {recentOrders.length === 0 ? (
               <p className="text-sm text-brand-500">No orders in the last 24 hours.</p>
             ) : (
-              <div className="space-y-4">
-                {recentOrders.map((order) => {
-                  const user = usersById[order.userId];
-                  return (
-                    <div key={order.id} className="rounded-3xl border border-brand-grey-100 bg-brand-grey-50 p-4">
-                      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <p className="text-sm font-semibold uppercase tracking-widest text-brand-700">Order #{order.id.slice(-8).toUpperCase()}</p>
-                          <p className="text-sm text-brand-500">
-                            {user ? user.fullName : "Unknown user"} • {order.phone}
-                          </p>
-                          <p className="text-sm text-brand-500">
-                            {order.createdAt instanceof Date ? order.createdAt.toLocaleString() : new Date(order.createdAt).toLocaleString()}
-                          </p>
+              <>
+                <div className="space-y-4">
+                  {paginatedRecentOrders.map((order) => {
+                    const user = usersById[order.userId];
+                    return (
+                      <div key={order.id} className="rounded-3xl border border-brand-grey-100 bg-brand-grey-50 p-4">
+                        {/* ... order content unchanged ... */}
+                        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="text-sm font-semibold uppercase tracking-widest text-brand-700">Order #{order.id.slice(-8).toUpperCase()}</p>
+                            <p className="text-sm text-brand-500">
+                              {user ? user.fullName : "Unknown user"} • {order.phone}
+                            </p>
+                            <p className="text-sm text-brand-500">
+                              {order.createdAt instanceof Date ? order.createdAt.toLocaleString() : new Date(order.createdAt).toLocaleString()}
+                            </p>
+                          </div>
+                          <div className="space-y-2 text-right">
+                            <p className="text-sm text-brand-700">₹{order.total.toFixed(2)}</p>
+                            <p className="text-xs text-brand-500">{order.items.length} item{order.items.length !== 1 ? "s" : ""}</p>
+                          </div>
                         </div>
-                        <div className="space-y-2 text-right">
-                          <p className="text-sm text-brand-700">₹{order.total.toFixed(2)}</p>
-                          <p className="text-xs text-brand-500">{order.items.length} item{order.items.length !== 1 ? "s" : ""}</p>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <label className="block text-sm text-brand-700">
+                            Order status
+                            <select
+                              value={order.status}
+                              onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value as Order["status"])}
+                              className="mt-2 w-full rounded-2xl border border-brand-grey-200 bg-white px-4 py-3 text-sm text-brand-900 outline-none focus:border-brand-900"
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="shipped">Shipped</option>
+                              <option value="delivered">Delivered</option>
+                              <option value="cancelled">Cancelled</option>
+                            </select>
+                          </label>
+                          <label className="block text-sm text-brand-700">
+                            Return status
+                            <select
+                              value={order.returnStatus ?? "none"}
+                              onChange={(e) => handleUpdateReturnStatus(order.id, e.target.value as Order["returnStatus"])}
+                              className="mt-2 w-full rounded-2xl border border-brand-grey-200 bg-white px-4 py-3 text-sm text-brand-900 outline-none focus:border-brand-900"
+                            >
+                              <option value="none">None</option>
+                              <option value="requested">Requested</option>
+                              <option value="approved">Approved</option>
+                              <option value="rejected">Rejected</option>
+                              <option value="returned">Returned</option>
+                            </select>
+                          </label>
                         </div>
+                        {order.returnReason && (
+                          <div className="mt-4 rounded-2xl bg-brand-grey-100 p-3 text-sm text-brand-600">
+                            <p className="font-medium">Return reason</p>
+                            <p>{order.returnReason}</p>
+                          </div>
+                        )}
                       </div>
-
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <label className="block text-sm text-brand-700">
-                          Order status
-                          <select
-                            value={order.status}
-                            onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value as Order["status"])}
-                            className="mt-2 w-full rounded-2xl border border-brand-grey-200 bg-white px-4 py-3 text-sm text-brand-900 outline-none focus:border-brand-900"
-                          >
-                            <option value="pending">Pending</option>
-                            <option value="shipped">Shipped</option>
-                            <option value="delivered">Delivered</option>
-                            <option value="cancelled">Cancelled</option>
-                          </select>
-                        </label>
-
-                        <label className="block text-sm text-brand-700">
-                          Return status
-                          <select
-                            value={order.returnStatus ?? "none"}
-                            onChange={(e) => handleUpdateReturnStatus(order.id, e.target.value as Order["returnStatus"])}
-                            className="mt-2 w-full rounded-2xl border border-brand-grey-200 bg-white px-4 py-3 text-sm text-brand-900 outline-none focus:border-brand-900"
-                          >
-                            <option value="none">None</option>
-                            <option value="requested">Requested</option>
-                            <option value="approved">Approved</option>
-                            <option value="rejected">Rejected</option>
-                            <option value="returned">Returned</option>
-                          </select>
-                        </label>
-                      </div>
-
-                      {order.returnReason && (
-                        <div className="mt-4 rounded-2xl bg-brand-grey-100 p-3 text-sm text-brand-600">
-                          <p className="font-medium">Return reason</p>
-                          <p>{order.returnReason}</p>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+                <PaginationControls currentPage={recentOrderPage} totalPages={totalRecentOrderPages} onPageChange={setRecentOrderPage} label="Recent Orders" />
+              </>
             )}
           </div>
 
+          {/* All Orders */}
           <div className="rounded-3xl border border-brand-grey-100 bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-xl font-semibold">All Orders</h3>
@@ -915,107 +959,108 @@ export default function AdminPage() {
             ) : orders.length === 0 ? (
               <p className="text-sm text-brand-500">No orders available.</p>
             ) : (
-              <div className="space-y-4">
-                {orders.map((order) => {
-                  const user = usersById[order.userId];
-                  return (
-                    <div key={order.id} className="rounded-3xl border border-brand-grey-100 bg-brand-grey-50 p-4">
-                      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <p className="text-sm font-semibold uppercase tracking-widest text-brand-700">Order #{order.id.slice(-8).toUpperCase()}</p>
-                          <p className="text-sm text-brand-500">
-                            {user ? user.fullName : "Unknown user"} • {order.phone}
-                          </p>
-                          <p className="text-sm text-brand-500">
-                            {order.createdAt instanceof Date ? order.createdAt.toLocaleDateString() : new Date(order.createdAt).toLocaleDateString()}
-                          </p>
+              <>
+                <div className="space-y-4">
+                  {paginatedAllOrders.map((order) => {
+                    const user = usersById[order.userId];
+                    return (
+                      <div key={order.id} className="rounded-3xl border border-brand-grey-100 bg-brand-grey-50 p-4">
+                        {/* ... order content unchanged ... */}
+                        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <p className="text-sm font-semibold uppercase tracking-widest text-brand-700">Order #{order.id.slice(-8).toUpperCase()}</p>
+                            <p className="text-sm text-brand-500">
+                              {user ? user.fullName : "Unknown user"} • {order.phone}
+                            </p>
+                            <p className="text-sm text-brand-500">
+                              {order.createdAt instanceof Date ? order.createdAt.toLocaleDateString() : new Date(order.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <div className="space-y-2 text-right">
+                            <p className="text-sm text-brand-700">₹{order.total.toFixed(2)}</p>
+                            <p className="text-xs text-brand-500">{order.items.length} item{order.items.length !== 1 ? "s" : ""}</p>
+                          </div>
                         </div>
-                        <div className="space-y-2 text-right">
-                          <p className="text-sm text-brand-700">₹{order.total.toFixed(2)}</p>
-                          <p className="text-xs text-brand-500">{order.items.length} item{order.items.length !== 1 ? "s" : ""}</p>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <label className="block text-sm text-brand-700">
+                            Order status
+                            <select
+                              value={order.status}
+                              onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value as Order["status"])}
+                              className="mt-2 w-full rounded-2xl border border-brand-grey-200 bg-white px-4 py-3 text-sm text-brand-900 outline-none focus:border-brand-900"
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="shipped">Shipped</option>
+                              <option value="delivered">Delivered</option>
+                              <option value="cancelled">Cancelled</option>
+                            </select>
+                          </label>
+                          <label className="block text-sm text-brand-700">
+                            Return status
+                            <select
+                              value={order.returnStatus ?? "none"}
+                              onChange={(e) => handleUpdateReturnStatus(order.id, e.target.value as Order["returnStatus"])}
+                              className="mt-2 w-full rounded-2xl border border-brand-grey-200 bg-white px-4 py-3 text-sm text-brand-900 outline-none focus:border-brand-900"
+                            >
+                              <option value="none">None</option>
+                              <option value="requested">Requested</option>
+                              <option value="approved">Approved</option>
+                              <option value="rejected">Rejected</option>
+                              <option value="returned">Returned</option>
+                            </select>
+                          </label>
                         </div>
-                      </div>
-
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <label className="block text-sm text-brand-700">
-                          Order status
-                          <select
-                            value={order.status}
-                            onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value as Order["status"])}
-                            className="mt-2 w-full rounded-2xl border border-brand-grey-200 bg-white px-4 py-3 text-sm text-brand-900 outline-none focus:border-brand-900"
+                        {order.returnReason && (
+                          <div className="mt-4 rounded-2xl bg-brand-grey-100 p-3 text-sm text-brand-600">
+                            <p className="font-medium">Return reason</p>
+                            <p>{order.returnReason}</p>
+                          </div>
+                        )}
+                        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-between">
+                          <Button
+                            type="button"
+                            onClick={() => handleDeleteOrder(order.id)}
+                            className="w-full border border-transparent bg-brand-red-600 text-white hover:bg-brand-red-700 sm:w-auto"
                           >
-                            <option value="pending">Pending</option>
-                            <option value="shipped">Shipped</option>
-                            <option value="delivered">Delivered</option>
-                            <option value="cancelled">Cancelled</option>
-                          </select>
-                        </label>
-
-                        <label className="block text-sm text-brand-700">
-                          Return status
-                          <select
-                            value={order.returnStatus ?? "none"}
-                            onChange={(e) => handleUpdateReturnStatus(order.id, e.target.value as Order["returnStatus"])}
-                            className="mt-2 w-full rounded-2xl border border-brand-grey-200 bg-white px-4 py-3 text-sm text-brand-900 outline-none focus:border-brand-900"
-                          >
-                            <option value="none">None</option>
-                            <option value="requested">Requested</option>
-                            <option value="approved">Approved</option>
-                            <option value="rejected">Rejected</option>
-                            <option value="returned">Returned</option>
-                          </select>
-                        </label>
-                      </div>
-
-                      {order.returnReason && (
-                        <div className="mt-4 rounded-2xl bg-brand-grey-100 p-3 text-sm text-brand-600">
-                          <p className="font-medium">Return reason</p>
-                          <p>{order.returnReason}</p>
-                        </div>
-                      )}
-
-                      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-between">
-                        <Button
-                          type="button"
-                          onClick={() => handleDeleteOrder(order.id)}
-                          className="w-full border border-transparent bg-brand-red-600 text-white hover:bg-brand-red-700 sm:w-auto"
-                        >
-                          Delete order
-                        </Button>
-                        <div className="rounded-3xl bg-white border border-brand-grey-200 p-3 text-sm text-brand-500">
-                          User: {user?.fullName ?? "Unknown"} • Role: {user?.role ?? "user"}
+                            Delete order
+                          </Button>
+                          <div className="rounded-3xl bg-white border border-brand-grey-200 p-3 text-sm text-brand-500">
+                            User: {user?.fullName ?? "Unknown"} • Role: {user?.role ?? "user"}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+                <PaginationControls currentPage={allOrderPage} totalPages={totalAllOrderPages} onPageChange={setAllOrderPage} label="All Orders" />
+              </>
             )}
           </div>
         </div>
 
-        <div className="grid gap-8 lg:grid-cols-[1.4fr_0.8fr]">
-          <div className="rounded-3xl border border-brand-grey-100 bg-white p-6 shadow-sm">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-xl font-semibold">Users</h3>
-              <p className="text-sm text-brand-500">{usersLoading ? "Loading..." : `${filteredUsers.length} users`}</p>
-            </div>
+        {/* Users Section (single, paginated with 5 per page) */}
+        <div className="rounded-3xl border border-brand-grey-100 bg-white p-6 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-xl font-semibold">Users</h3>
+            <p className="text-sm text-brand-500">{usersLoading ? "Loading..." : `${filteredUsers.length} users`}</p>
+          </div>
 
-            <div className="mb-4">
-              <input
-                type="text"
-                placeholder="Search users by name, phone, or UID..."
-                value={userSearchTerm}
-                onChange={(e) => setUserSearchTerm(e.target.value)}
-                className="w-full rounded-2xl border border-brand-grey-200 bg-brand-grey-50 px-4 py-3 text-sm text-brand-900 outline-none focus:border-brand-900"
-              />
-            </div>
+          <div className="mb-4">
+            <input
+              type="text"
+              placeholder="Search users by name, phone, or UID..."
+              value={userSearchTerm}
+              onChange={(e) => setUserSearchTerm(e.target.value)}
+              className="w-full rounded-2xl border border-brand-grey-200 bg-brand-grey-50 px-4 py-3 text-sm text-brand-900 outline-none focus:border-brand-900"
+            />
+          </div>
 
-            {usersLoading ? (
-              <p className="text-sm text-brand-500">Loading users…</p>
-            ) : filteredUsers.length === 0 ? (
-              <p className="text-sm text-brand-500">No users found.</p>
-            ) : (
+          {usersLoading ? (
+            <p className="text-sm text-brand-500">Loading users…</p>
+          ) : filteredUsers.length === 0 ? (
+            <p className="text-sm text-brand-500">No users found.</p>
+          ) : (
+            <>
               <div className="space-y-4">
                 {paginatedUsers.map((user) => (
                   <div key={user.uid} className="rounded-3xl border border-brand-grey-100 bg-brand-grey-50 p-4 cursor-pointer hover:bg-brand-grey-100 transition-colors" onClick={() => {
@@ -1036,100 +1081,13 @@ export default function AdminPage() {
                   </div>
                 ))}
               </div>
-            )}
-
-            {totalUserPages > 1 && (
-              <div className="mt-6 flex items-center justify-between">
-                <button
-                  onClick={() => setCurrentUserPage(prev => Math.max(1, prev - 1))}
-                  disabled={currentUserPage === 1}
-                  className="rounded-2xl border border-brand-grey-200 bg-white px-4 py-2 text-sm text-brand-700 hover:bg-brand-grey-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                <span className="text-sm text-brand-500">
-                  Page {currentUserPage} of {totalUserPages}
-                </span>
-                <button
-                  onClick={() => setCurrentUserPage(prev => Math.min(totalUserPages, prev + 1))}
-                  disabled={currentUserPage === totalUserPages}
-                  className="rounded-2xl border border-brand-grey-200 bg-white px-4 py-2 text-sm text-brand-700 hover:bg-brand-grey-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-3xl border border-brand-grey-100 bg-white p-6 shadow-sm">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-xl font-semibold">Users</h3>
-              <p className="text-sm text-brand-500">{usersLoading ? "Loading..." : `${filteredUsers.length} users`}</p>
-            </div>
-
-            <div className="mb-4">
-              <input
-                type="text"
-                placeholder="Search users by name, phone, or UID..."
-                value={userSearchTerm}
-                onChange={(e) => setUserSearchTerm(e.target.value)}
-                className="w-full rounded-2xl border border-brand-grey-200 bg-brand-grey-50 px-4 py-3 text-sm text-brand-900 outline-none focus:border-brand-900"
-              />
-            </div>
-
-            {usersLoading ? (
-              <p className="text-sm text-brand-500">Loading users…</p>
-            ) : filteredUsers.length === 0 ? (
-              <p className="text-sm text-brand-500">No users found.</p>
-            ) : (
-              <div className="space-y-4">
-                {paginatedUsers.map((user) => (
-                  <div key={user.uid} className="rounded-3xl border border-brand-grey-100 bg-brand-grey-50 p-4 cursor-pointer hover:bg-brand-grey-100 transition-colors" onClick={() => {
-                    setSelectedUser(user);
-                    setUserDetailsOpen(true);
-                  }}>
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <p className="text-sm font-semibold uppercase tracking-widest text-brand-700">{user.fullName || "No name"}</p>
-                        <p className="text-sm text-brand-500">{user.phone}</p>
-                        <p className="text-sm text-brand-500">Orders: {orderCountsByUser[user.uid] || 0}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm text-brand-500">Role: {user.role ?? "user"}</p>
-                        <p className="text-xs text-brand-400">Click to view details</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {totalUserPages > 1 && (
-              <div className="mt-6 flex items-center justify-between">
-                <button
-                  onClick={() => setCurrentUserPage(prev => Math.max(1, prev - 1))}
-                  disabled={currentUserPage === 1}
-                  className="rounded-2xl border border-brand-grey-200 bg-white px-4 py-2 text-sm text-brand-700 hover:bg-brand-grey-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                <span className="text-sm text-brand-500">
-                  Page {currentUserPage} of {totalUserPages}
-                </span>
-                <button
-                  onClick={() => setCurrentUserPage(prev => Math.min(totalUserPages, prev + 1))}
-                  disabled={currentUserPage === totalUserPages}
-                  className="rounded-2xl border border-brand-grey-200 bg-white px-4 py-2 text-sm text-brand-700 hover:bg-brand-grey-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
-              </div>
-            )}
-          </div>
+              <PaginationControls currentPage={currentUserPage} totalPages={totalUserPages} onPageChange={setCurrentUserPage} label="Users" />
+            </>
+          )}
         </div>
       </section>
 
-      {/* User Details Modal */}
+      {/* User Details Modal unchanged */}
       {userDetailsOpen && selectedUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
           <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-brand-grey-100 bg-white p-6 shadow-sm">
@@ -1142,7 +1100,6 @@ export default function AdminPage() {
                 ✕
               </button>
             </div>
-
             <div className="space-y-6">
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block text-sm text-brand-700">
@@ -1164,7 +1121,6 @@ export default function AdminPage() {
                   />
                 </label>
               </div>
-
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="block text-sm text-brand-700">
                   Email
@@ -1187,7 +1143,6 @@ export default function AdminPage() {
                   </select>
                 </label>
               </div>
-
               <div className="rounded-3xl border border-brand-grey-100 bg-brand-grey-50 p-4">
                 <h4 className="mb-3 font-semibold text-brand-700">User Statistics</h4>
                 <div className="grid gap-2 text-sm text-brand-500">
@@ -1195,7 +1150,6 @@ export default function AdminPage() {
                   <p>Total Orders: {orderCountsByUser[selectedUser.uid] || 0}</p>
                 </div>
               </div>
-
               <div className="flex flex-col gap-3 sm:flex-row sm:justify-between">
                 <Button
                   type="button"

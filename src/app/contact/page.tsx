@@ -25,10 +25,10 @@ export default function ContactPage() {
     e.preventDefault();
 
     const text = `Hello 𝔽𝕒𝕙𝕒𝕟 𝕎𝕖𝕒𝕣,%0A
-I want to contact you:%0A%0A
-Name: ${formData.name}%0A
-Email: ${formData.email}%0A
-Message: ${formData.message}`;
+      I want to contact you:%0A%0A
+      Name: ${formData.name}%0A
+      Email: ${formData.email}%0A
+      Message: ${formData.message}`;
 
     const phoneNumber = "918171423264"; // +91 without +
     const whatsappURL = `https://wa.me/${phoneNumber}?text=${text}`;

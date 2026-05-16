@@ -358,26 +358,25 @@ export default function CheckoutPage() {
     );
   }
 
-  if (!user) {
-    return (
-      <div className="mx-auto max-w-2xl px-6 py-16 text-center">
-        <AnimatedSection>
-          <h2 className="text-2xl font-light uppercase tracking-widest">
-            Sign in to checkout
-          </h2>
-          <p className="mt-4 text-brand-500">
-            Your shipping details and order history are saved in your account.
-          </p>
-          <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:justify-center">
-            <Button href="/login">Sign In</Button>
-            <Button href="/login" variant="secondary">
-              Create Account
-            </Button>
-          </div>
-        </AnimatedSection>
-      </div>
-    );
-  }
+if (!user) {
+  return (
+    <div className="mx-auto max-w-2xl px-6 py-16 text-center">
+      <AnimatedSection>
+        <h2 className="text-2xl font-light uppercase tracking-widest">
+          Sign In to Continue
+        </h2>
+
+        <p className="mt-4 text-brand-500">
+          Save your shipping details, track orders, and enjoy a faster checkout experience.
+        </p>
+
+        <div className="mt-8 flex flex-col gap-4 sm:flex-row sm:justify-center">
+          <Button href="/login">Create Account</Button>
+        </div>
+      </AnimatedSection>
+    </div>
+  );
+}
 
   if (state.items.length === 0 && !submitted) {
     return (

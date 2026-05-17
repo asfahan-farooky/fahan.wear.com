@@ -70,7 +70,7 @@ export default function ProductPage() {
             />
           </svg>
           <p className="text-xl font-light uppercase tracking-widest">
-            Loading Product Please Wait...
+            Loading Product...
           </p>
         </div>
       </div>
